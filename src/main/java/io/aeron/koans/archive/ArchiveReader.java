@@ -48,15 +48,17 @@ public class ArchiveReader {
         // Select target archive from command-line argument (default: server)
         final String target = (args.length > 0) ? args[0].toLowerCase() : "server";
         final String archiveControlChannel;
-        final String archiveControlResponseChannel;
+        // The Reader uses its own dedicated response port so it doesn't clash with
+        // the Server's or Client's existing archive response listeners.
+        final String readerResponseChannel;
 
         if ("client".equals(target)) {
-            archiveControlChannel         = ArchiveClient.ARCHIVE_CONTROL_CHANNEL;
-            archiveControlResponseChannel = ArchiveClient.ARCHIVE_CONTROL_RESPONSE_CHANNEL;
+            archiveControlChannel = ArchiveClient.ARCHIVE_CONTROL_CHANNEL;
+            readerResponseChannel = "aeron:udp?endpoint=localhost:8051";
             System.out.println("[Reader] Connecting to CLIENT archive at " + archiveControlChannel);
         } else {
-            archiveControlChannel         = ArchiveServer.ARCHIVE_CONTROL_CHANNEL;
-            archiveControlResponseChannel = ArchiveServer.ARCHIVE_CONTROL_RESPONSE_CHANNEL;
+            archiveControlChannel = ArchiveServer.ARCHIVE_CONTROL_CHANNEL;
+            readerResponseChannel = "aeron:udp?endpoint=localhost:8050";
             System.out.println("[Reader] Connecting to SERVER archive at " + archiveControlChannel);
         }
 
@@ -67,10 +69,10 @@ public class ArchiveReader {
              AeronArchive aeronArchive = AeronArchive.connect(new AeronArchive.Context()
                      .aeron(aeron)
                      .controlRequestChannel(archiveControlChannel)
-                     .controlResponseChannel(archiveControlResponseChannel))) {
+                     .controlResponseChannel(readerResponseChannel))) {
 
             // Enumerate all recordings in the archive
-            final List<long[]> recordings = new ArrayList<>(); // [recordingId, startPos, stopPos, streamId]
+            final List<long[]> recordings = new ArrayList<>(); // [recordingId, startPos, rawStopPos]
 
             final int found = aeronArchive.listRecordings(0, Integer.MAX_VALUE,
                     (controlSessionId, correlationId, recordingId,
@@ -81,11 +83,19 @@ public class ArchiveReader {
 
                         System.out.printf(
                                 "[Reader] Found recording → id=%d channel=%s streamId=%d " +
-                                "startPos=%d stopPos=%d%n",
+                                "startPos=%d stopPos=%d%s%n",
                                 recordingId, strippedChannel, streamId,
-                                startPosition, stopPosition);
+                                startPosition, stopPosition,
+                                stopPosition < 0 ? " (active)" : "");
                         recordings.add(new long[]{recordingId, startPosition, stopPosition});
                     });
+
+            // Resolve active-recording positions OUTSIDE the callback (re-entrant calls are not permitted)
+            for (final long[] rec : recordings) {
+                if (rec[2] < 0) {
+                    rec[2] = aeronArchive.getRecordingPosition(rec[0]);
+                }
+            }
 
             if (found == 0) {
                 System.out.println("[Reader] No recordings found – ensure ArchiveServer/ArchiveClient has run.");

@@ -70,7 +70,13 @@ fun runTask(name: String, mainClass: String, description: String) =
         this.description = description
         this.classpath = sourceSets.main.get().runtimeClasspath
         this.mainClass.set(mainClass)
-        this.jvmArgs = listOf("-Daeron.term.buffer.length=1048576")
+        this.jvmArgs = listOf(
+            "-Daeron.term.buffer.length=1048576",
+            "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+            "--add-opens=java.base/java.lang=ALL-UNNAMED",
+            "--add-opens=java.base/java.util=ALL-UNNAMED",
+            "--add-opens=java.base/java.nio=ALL-UNNAMED"
+        )
     }
 
 runTask("runMessagingClient", "io.aeron.koans.messaging.MessagingClient",
