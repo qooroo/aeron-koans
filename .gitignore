@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.class
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Aeron / Archive runtime directories (created under /tmp, not in repo)
+/tmp/aeron-*/
+/tmp/archive-*/
