@@ -29,30 +29,36 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MessagingVenue {
 
-    static final int STREAM_ID = 1;
+    /** Well-known Aeron directory shared between Venue and Client. */
+    static final String AERON_DIR = System.getProperty("java.io.tmpdir") + "/aeron-koans-messaging";
 
     public static void main(final String[] args) throws Exception {
         final AtomicBoolean running = new AtomicBoolean(true);
         SigInt.register(() -> running.set(false));
 
-        System.out.println("[Venue] Starting embedded media driver...");
+        System.out.println("[Venue] Starting shared media driver...");
 
         // Keep a reference to the publication so the fragment handler can use it.
         final AtomicReference<Publication> reportsPubRef = new AtomicReference<>();
 
-        try (MediaDriver driver = MediaDriver.launchEmbedded();
+        final MediaDriver.Context driverCtx = new MediaDriver.Context()
+                .aeronDirectoryName(AERON_DIR)
+                .dirDeleteOnStart(true)
+                .dirDeleteOnShutdown(true);
+
+        try (MediaDriver driver = MediaDriver.launch(driverCtx);
              Aeron aeron = Aeron.connect(new Aeron.Context()
-                     .aeronDirectoryName(driver.aeronDirectoryName()))) {
+                     .aeronDirectoryName(AERON_DIR))) {
 
             try (Subscription ordersSub = aeron.addSubscription(
-                         MessagingClient.ORDERS_CHANNEL, STREAM_ID);
+                         MessagingClient.CHANNEL, MessagingClient.ORDERS_STREAM_ID);
                  Publication reportsPub = aeron.addPublication(
-                         MessagingClient.REPORTS_CHANNEL, STREAM_ID)) {
+                         MessagingClient.CHANNEL, MessagingClient.REPORTS_STREAM_ID)) {
 
                 reportsPubRef.set(reportsPub);
 
                 System.out.println("[Venue] Listening for orders on " +
-                        MessagingClient.ORDERS_CHANNEL + " (Ctrl-C to quit)");
+                        MessagingClient.CHANNEL + " (Ctrl-C to quit)");
 
                 while (running.get()) {
                     ordersSub.poll(

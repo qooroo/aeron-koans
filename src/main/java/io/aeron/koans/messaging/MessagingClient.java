@@ -3,7 +3,7 @@ package io.aeron.koans.messaging;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.Subscription;
-import io.aeron.driver.MediaDriver;
+
 import io.aeron.koans.sbe.ExecutionReportDecoder;
 import io.aeron.koans.sbe.MessageHeaderDecoder;
 import io.aeron.koans.sbe.MessageHeaderEncoder;
@@ -27,28 +27,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class MessagingClient {
 
-    /** Channel on which the Venue subscribes for incoming orders. */
-    static final String ORDERS_CHANNEL = "aeron:udp?endpoint=localhost:20121";
+    /** IPC channel – both Client and Venue share the same media driver. */
+    static final String CHANNEL = "aeron:ipc";
 
-    /** Channel on which the Client subscribes for execution reports. */
-    static final String REPORTS_CHANNEL = "aeron:udp?endpoint=localhost:20122";
-
-    static final int STREAM_ID = 1;
+    static final int ORDERS_STREAM_ID  = 1;
+    static final int REPORTS_STREAM_ID = 2;
 
     public static void main(final String[] args) throws Exception {
         final AtomicBoolean running = new AtomicBoolean(true);
         SigInt.register(() -> running.set(false));
 
-        System.out.println("[Client] Starting embedded media driver...");
+        System.out.println("[Client] Connecting to shared media driver...");
 
-        try (MediaDriver driver = MediaDriver.launchEmbedded();
-             Aeron aeron = Aeron.connect(new Aeron.Context()
-                     .aeronDirectoryName(driver.aeronDirectoryName()))) {
+        try (Aeron aeron = Aeron.connect(new Aeron.Context()
+                     .aeronDirectoryName(MessagingVenue.AERON_DIR))) {
 
-            try (Publication ordersPub = aeron.addPublication(ORDERS_CHANNEL, STREAM_ID);
-                 Subscription reportsSub = aeron.addSubscription(REPORTS_CHANNEL, STREAM_ID)) {
+            try (Publication ordersPub = aeron.addPublication(CHANNEL, ORDERS_STREAM_ID);
+                 Subscription reportsSub = aeron.addSubscription(CHANNEL, REPORTS_STREAM_ID)) {
 
-                System.out.println("[Client] Waiting for Venue to connect on " + ORDERS_CHANNEL + "...");
+                System.out.println("[Client] Waiting for Venue to connect on " + CHANNEL + "...");
                 while (!ordersPub.isConnected() && running.get()) {
                     Thread.sleep(100);
                 }
