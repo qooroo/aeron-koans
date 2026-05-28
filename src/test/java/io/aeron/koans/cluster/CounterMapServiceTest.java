@@ -140,4 +140,45 @@ class CounterMapServiceTest {
         assertEquals(5L, r.value());
         assertEquals(ResponseStatus.KEY_NOT_FOUND, service.apply(CommandType.GET, 1, "visits").status());
     }
+
+    // --- SNAPSHOT ---
+
+    @Test
+    void snapshot_emptyMap_roundTrips() {
+        java.util.List<byte[]> snapshot = service.encodeSnapshot();
+        CounterMapService restored = new CounterMapService();
+        restored.loadFromEncodedSnapshot(snapshot);
+        assertEquals(ResponseStatus.KEY_NOT_FOUND, restored.apply(CommandType.GET, 1, "x").status());
+    }
+
+    @Test
+    void snapshot_populatedMap_roundTrips() {
+        service.apply(CommandType.INCREMENT, 10, "hits");
+        service.apply(CommandType.INCREMENT, 5,  "visits");
+        service.apply(CommandType.INCREMENT, 99, "errors");
+
+        java.util.List<byte[]> snapshot = service.encodeSnapshot();
+
+        CounterMapService restored = new CounterMapService();
+        restored.loadFromEncodedSnapshot(snapshot);
+
+        assertEquals(10L, restored.apply(CommandType.GET, 1, "hits").value());
+        assertEquals(5L,  restored.apply(CommandType.GET, 1, "visits").value());
+        assertEquals(99L, restored.apply(CommandType.GET, 1, "errors").value());
+        assertEquals(ResponseStatus.KEY_NOT_FOUND, restored.apply(CommandType.GET, 1, "missing").status());
+    }
+
+    @Test
+    void snapshot_afterDelete_omitsDeletedKey() {
+        service.apply(CommandType.INCREMENT, 3, "a");
+        service.apply(CommandType.INCREMENT, 7, "b");
+        service.apply(CommandType.DELETE, 1, "a");
+
+        java.util.List<byte[]> snapshot = service.encodeSnapshot();
+        CounterMapService restored = new CounterMapService();
+        restored.loadFromEncodedSnapshot(snapshot);
+
+        assertEquals(ResponseStatus.KEY_NOT_FOUND, restored.apply(CommandType.GET, 1, "a").status());
+        assertEquals(7L, restored.apply(CommandType.GET, 1, "b").value());
+    }
 }
