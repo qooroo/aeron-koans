@@ -70,12 +70,13 @@ tasks.test {
 // ---------------------------------------------------------------------------
 // Run tasks – each mini-application has its own task
 // ---------------------------------------------------------------------------
-fun runTask(name: String, mainClass: String, description: String) =
+fun runTask(name: String, mainClass: String, description: String, appArgs: List<String> = emptyList()) =
     tasks.register<JavaExec>(name) {
         this.group = "run"
         this.description = description
         this.classpath = sourceSets.main.get().runtimeClasspath
         this.mainClass.set(mainClass)
+        this.args = appArgs
         this.jvmArgs = listOf(
             "-Daeron.term.buffer.length=1048576",
             "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
@@ -95,3 +96,13 @@ runTask("runArchiveClient",   "io.aeron.koans.archive.ArchiveClient",
         "Run the Archive Client   (sends Pings, receives Pongs, writes to local archive)")
 runTask("runArchiveReader",   "io.aeron.koans.archive.ArchiveReader",
         "Run the Archive Reader   (replays & decodes recordings from server or client archive)")
+runTask("runClusterNode0",   "io.aeron.koans.cluster.ClusterNode",
+        "Run Cluster Node 0  (nodeId=0, ingress=20000)", listOf("0"))
+runTask("runClusterNode1",   "io.aeron.koans.cluster.ClusterNode",
+        "Run Cluster Node 1  (nodeId=1, ingress=20100)", listOf("1"))
+runTask("runClusterNode2",   "io.aeron.koans.cluster.ClusterNode",
+        "Run Cluster Node 2  (nodeId=2, ingress=20200)", listOf("2"))
+runTask("runClusterClient",  "io.aeron.koans.cluster.ClusterClient",
+        "Run Cluster Client  (interactive named-counter REPL)")
+runTask("runClusterSnapshot","io.aeron.koans.cluster.ClusterSnapshot",
+        "Request a snapshot from the running cluster leader")
