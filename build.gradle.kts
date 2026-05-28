@@ -24,6 +24,8 @@ dependencies {
     implementation("io.aeron:aeron-all:$aeronVersion")
     implementation("uk.co.real-logic:sbe-all:$sbeVersion")
     sbeCodegen("uk.co.real-logic:sbe-tool:$sbeVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,10 @@ sourceSets {
 
 tasks.named("compileJava") {
     dependsOn(generateSbeSources)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // ---------------------------------------------------------------------------
